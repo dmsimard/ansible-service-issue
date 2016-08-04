@@ -1,0 +1,54 @@
+- hosts: all
+  tasks:
+    # https://hub.docker.com/_/centos/
+    # Systemd integration
+    - name: Enable systemd integration (1/2)
+      shell: |
+        for i in *
+        do
+          [ $i == systemd-tmpfiles-setup.service ] || rm -f $i
+        done
+      args:
+        chdir: "/lib/systemd/system/sysinit.target.wants/"
+
+    - name: Enable systemd integration (2/2)
+      shell: "{{ item }}"
+      with_items:
+        - rm -f /lib/systemd/system/multi-user.target.wants/*
+        - rm -f /etc/systemd/system/*.wants/*
+        - rm -f /lib/systemd/system/local-fs.target.wants/*
+        - rm -f /lib/systemd/system/sockets.target.wants/*udev*
+        - rm -f /lib/systemd/system/sockets.target.wants/*initctl*
+        - rm -f /lib/systemd/system/basic.target.wants/*
+        - rm -f /lib/systemd/system/anaconda.target.wants/*
+
+    - name: Install httpd
+      package:
+        name: "httpd"
+        state: "present"
+
+    - name: Enable and start httpd
+      service:
+        name: "httpd"
+        state: "started"
+        enabled: "yes"
+      ignore_errors: "yes"
+
+    - name: Register unit files
+      command: systemctl list-unit-files
+      register: systemctl
+
+    - name: Print unit files
+      debug:
+        msg: "{{ systemctl.stdout_lines }}"
+
+    # https://github.com/ansible/ansible-modules-core/blob/635c37cec669130562ec2ff118d2e4c68cad0423/system/service.py#L412
+    - name: Check existence of canary
+      command: "ls -al {{ item }}"
+      with_items:
+        - /run/systemd/system/
+        - /dev/.run/systemd/
+        - /dev/.systemd/
+      ignore_errors: "yes"
+
+    - fail:

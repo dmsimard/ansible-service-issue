@@ -1,0 +1,7 @@
+version: "1"
+services:
+  httpd:
+    image: centos:latest
+    expose:
+      - 80
+registries: {}
